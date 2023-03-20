@@ -1,1 +1,75 @@
 
+django-admin startproject ports
+cd ports
+python manage.py startapp scan
+
+
+In the models.py file inside the scan app, create a model to store the scan results:
+
+from django.db import models
+
+class ScanResult(models.Model):
+    host = models.CharField(max_length=100)
+    open_ports = models.CharField(max_length=1000)
+    date = models.DateTimeField(auto_now_add=True)
+
+
+In the views.py file inside the scan app, create a view to handle the port scan and store the results:
+
+from django.shortcuts import render, redirect
+from .models import ScanResult
+import socket
+
+def scan(request):
+    if request.method == "POST":
+        host = request.POST.get("host")
+        open_ports = []
+        for port in range(1, 1000):
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            sock.settimeout(5)
+            result = sock.connect_ex((host, port))
+            if result == 0:
+                open_ports.append(port)
+        scan_result = ScanResult(host=host, open_ports=str(open_ports))
+        scan_result.save()
+        return redirect("scan_results")
+    return render(request, "scan.html")
+
+
+In the views.py file inside the scan app, create a view to display the scan results:
+
+from django.shortcuts import render
+from .models import ScanResult
+
+def scan_results(request):
+    scan_results = ScanResult.objects.all()
+    return render(request, "scan_results.html", {"scan_results": scan_results})
+
+
+In the urls.py file inside the scan app, create URL patterns to handle the /scan and /scan_results URLs:
+
+from django.urls import path
+from . import views
+
+urlpatterns = [
+    path("scan", views.scan, name="scan"),
+    path("scan_results", views.scan_results, name="scan_results"),
+]
+
+
+In the scan app, create a template for the scan.html view, this is where the user will input the host to be scanned, and the scan_results.html view, where the results of the scans will be displayed:
+
+<!-- scan.html -->
+<form method="post">
+    {% csrf_token %}
+    <label for="host">Host:</label>
+    <input type="text" name="host" id="host">
+    <input type="submit" value="Scan">
+</form>
+
+
+<!-- scan_results.html -->
+{% for scan_result in scan_results %}
+    <p>Host: {{ scan_result.host }}</p>
+    <p>Open Ports: {{ scan_result.open_ports }}</p
+
